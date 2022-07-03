@@ -405,9 +405,196 @@ semPaths(smodel,"std",edge.label.cex = 0.8,
          fade = FALSE, layout = "spring",
          optimizeLatRes = FALSE,residuals = FALSE)
 
+# Demographic variables and Anxiety Q22 
+## age and anxiety
+r41 = lm(GAD ~ age, data = a)
+r42 = lm(GAD ~ gender, data = a)
+r43 = lm(GAD ~ education, data = a)
+r44 = lm(GAD ~ income, data = a)
+r45 = lm(GAD ~ age +gender + education +income, data = a)
 
+stargazer(r41,r42,r43,r44,r45,
+          type="latex",
+          font.size = "small",
+          align = TRUE,
+          intercept.bottom = F,
+          intercept.top = T,
+          ci = F, digits=2,
+          notes = "Demographics on Anxiety",
+          column.sep.width = "-25pt", 
+          model.names = T,
+          single.row = T)
 
+# Mediation of source assessment
 
+a = a %>%
+  mutate(certainty = Q17_1,
+         overload = Q17_2,
+         anxiety = Q17_3,
+         confusion = Q17_4)
 
+## mediation effects analysis
+library(mediation)
 
+#M:certainty age
+certainty.mediator = lm(certainty ~ age,a)
+certainty.dv = lm(GAD ~ age+ certainty,a)
+m1 = mediate(certainty.mediator, certainty.dv, treat='age', mediator='certainty', boot=T)
+summary(m1)
 
+## all source assessment 
+source.mod = '
+  GAD ~ a1* certainty +a2* overload + a3* anxiety + a4* confusion +b1 *age + b2*gender +b3*education + b4* income
+  certainty ~ c1 *age + c2*gender +c3*education + c4* income
+  overload ~ d1 *age + d2*gender +d3*education + d4* income
+  anxiety ~  e1 *age + e2*gender +e3*education + e4* income
+  confusion ~  f1 *age + f2*gender +f3*education + f4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 :=a1*c3
+  Indirect4 :=a1*c4
+  Indirect5 := a2*d1
+  Indirect6 := a2*d2
+  Indirect7 :=a2*d3
+  Indirect8 :=a2*d4
+  Indirect9 := a3*e1
+  Indirect10 := a3*e2
+  Indirect11 :=a3*e3
+  Indirect12 :=a3*e4
+  Indirect13 := a4*f1
+  Indirect14:= a4*f2
+  Indirect15 :=a4*f3
+  Indirect16 :=a4*f4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+
+## sem all model
+library(lavaan)
+sa.model = sem(source.mod, data = a,
+             std.lv = TRUE , meanstructure = TRUE )
+library(semTable)
+library(semPlot)
+semTable (sa.model, columns = c("est", "estsestars" ), paramSets = c("intercepts","slopes"), 
+          fits = c("chisq","rmsea"),
+          type = "latex") 
+
+summary(sa.model, standardized = TRUE)
+library(kableExtra)
+parameterestimates(sa.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+semPaths(sa.model,"std","est",
+         style = "lisrel",
+         residScale = 8,
+         theme = "colorblind",
+         nCharNodes = 0,
+         rotation = 2,
+         layout = "tree3")
+
+#Mediation of support
+support.mod = '
+  GAD ~ a1* mean_support +b1 *age + b2*gender +b3*education + b4* income
+  mean_support~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect := a1*c1
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+support.model = sem(support.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+library(kableExtra)
+
+parameterestimates(support.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+# mediation of resilience
+resilience.mod = '
+  GAD ~ a1* mean_resilience +b1 *age + b2*gender +b3*education + b4* income
+  mean_resilience~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 :=a1*c3
+  Indirect4 :=a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+
+resilience.model = sem(resilience.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+parameterestimates(resilience.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## mediation of empathy
+a$Q27_1 = as.numeric(d$Q27_1)
+a$Q27_2 = as.numeric(d$Q27_2)
+a$Q27_3 = as.numeric(d$Q27_3)  
+
+a = a %>%
+  mutate(empathy = (Q27_1 + Q27_2 + Q27_3)/3) 
+
+empathy.mod = '
+  GAD ~ a1* empathy +b1 *age + b2*gender +b3*education + b4* income
+  empathy~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 :=a1*c3
+  Indirect4 :=a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+
+resilience.model = sem(empathy.mod, data = a,
+                       std.lv = TRUE , meanstructure = TRUE )
+parameterestimates(resilience.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## mediation of support, resilience and empathy in one model
+
+catchall.mod = '
+  GAD ~ a1* mean_support +a2* mean_resilience + a3 * empathy +b1 *age + b2*gender +b3*education + b4* income
+  mean_support~ c1 *age + c2*gender +c3*education + c4* income
+  mean_resilience~ d1 *age + d2*gender +d3*education + d4* income
+  empathy~ e1 *age + e2*gender +e3*education + e4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 :=a1*c3
+  Indirect4 :=a1*c4
+  Indirect5 := a2*d1
+  Indirect6 := a2*d2
+  Indirect7 :=a2*d3
+  Indirect8 :=a2*d4
+  Indirect9 := a3*e1
+  Indirect10 := a3*e2
+  Indirect11 :=a3*e3
+  Indirect12 :=a3*e4
+  mean_support ~~ mean_resilience
+  mean_resilience ~~ empathy
+  mean_support ~~ empathy
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+
+catchall.model = sem(catchall.mod, data = a,
+                       std.lv = TRUE , meanstructure = TRUE )
+parameterestimates(catchall.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
