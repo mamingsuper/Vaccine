@@ -12,6 +12,9 @@ library(sjPlot)
 library(hrbrthemes)
 library(likert)
 library(stargazer)
+library(lavaan)
+library(kableExtra)
+
 
 #age
 d = d %>%
@@ -293,6 +296,8 @@ stargazer(r33,r34,
 # Resilience and Anxiety
 ##recode resilience items
 a = d %>%
+  mutate(age = ifelse(Q1>100,2022-Q1,Q1))
+a = a %>%
   mutate(re1_po = Q25_1,
          re1_ng = Q25_2,
          re2_po = Q25_3,
@@ -424,6 +429,351 @@ stargazer(r41,r42,r43,r44,r45,
           column.sep.width = "-25pt", 
           model.names = T,
           single.row = T)
+
+# Mediation of media use
+
+a = a %>%
+  mutate(Use_phone = Q15_1,
+         Socialmedia_chat = Q15_2,
+         Socialmedia_post = Q15_3,
+         Socialmedia_scan = Q15_4,
+         Socialmedia_news = Q15_5,
+         Online_search = Q15_6,
+         Email = Q15_7,
+         Media_share = Q15_8,
+        Short_message = Q15_9,
+        Digital_game = Q15_10,
+        Whatsapp_wechat_line = Q15_11,
+        Skype_FT_zoom = Q15_12,
+        Online_friends = Q15_13,
+        Phone_call = Q15_14,
+        Watch_TV = Q15_5,
+        Radio = Q15_6,
+        Newspaper = Q15_17)
+
+#Mediation of Use-phone
+
+usephone.mod = '
+  GAD ~ a1* Use_phone +b1 *age + b2*gender +b3*education + b4* income
+  Use_phone~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+usephone.model = sem(usephone.mod, data = a,
+                    std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(usephone.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+##Mediation of Social media Chat
+smc.mod = '
+  GAD ~ a1* Socialmedia_chat +b1 *age + b2*gender +b3*education + b4* income
+  Socialmedia_chat~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smc.model = sem(smc.mod, data = a,
+                     std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smc.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+
+##Mediation of Social media Post
+smp.mod = '
+  GAD ~ a1* Socialmedia_post +b1 *age + b2*gender +b3*education + b4* income
+  Socialmedia_post~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smp.model = sem(smp.mod, data = a,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smp.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Social media News
+smn.mod = '
+  GAD ~ a1* Socialmedia_news +b1 *age + b2*gender +b3*education + b4* income
+  Socialmedia_news~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smn.model = sem(smn.mod, data = a,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smn.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Online Search
+os.mod = '
+  GAD ~ a1* Online_search +b1 *age + b2*gender +b3*education + b4* income
+  Online_search~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+os.model = sem(os.mod, data = a,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(os.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+
+## Mediation of Email
+eml.mod = '
+  GAD ~ a1* Email +b1 *age + b2*gender +b3*education + b4* income
+  Email~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+eml.model = sem(eml.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(eml.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+
+## Mediation of Mediashare
+ms.mod = '
+  GAD ~ a1* Media_share +b1 *age + b2*gender +b3*education + b4* income
+  Media_share~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+ms.model = sem(ms.mod, data = a,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(ms.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+
+
+## Mediation of Short message
+smg.mod = '
+  GAD ~ a1* Short_message +b1 *age + b2*gender +b3*education + b4* income
+  Short_message~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smg.model = sem(smg.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smg.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Digital Game
+dg.mod = '
+  GAD ~ a1* Digital_game +b1 *age + b2*gender +b3*education + b4* income
+  Digital_game~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+dg.model = sem(dg.mod, data = a,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(dg.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Whatsapp
+wapp.mod = '
+  GAD ~ a1* Whatsapp_wechat_line +b1 *age + b2*gender +b3*education + b4* income
+  Whatsapp_wechat_line~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+wapp.model = sem(wapp.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(wapp.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Skype
+sky.mod = '
+  GAD ~ a1* Skype_FT_zoom +b1 *age + b2*gender +b3*education + b4* income
+  Skype_FT_zoom~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+sky.model = sem(sky.mod, data = a,
+                 std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(sky.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Online friends
+of.mod = '
+  GAD ~ a1* Online_friends +b1 *age + b2*gender +b3*education + b4* income
+  Online_friends ~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+of.model = sem(of.mod, data = a,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(of.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+
+
+## Mediation of TV
+TV.mod = '
+  GAD ~ a1* Watch_TV +b1 *age + b2*gender +b3*education + b4* income
+  Watch_TV ~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+TV.model = sem(TV.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(TV.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Radio
+Rd.mod = '
+  GAD ~ a1* Radio +b1 *age + b2*gender +b3*education + b4* income
+  Radio~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+Rd.model = sem(Rd.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(Rd.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+## Mediation of Newspaper
+Npr.mod = '
+  GAD ~ a1* Newspaper +b1 *age + b2*gender +b3*education + b4* income
+  Newspaper~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+Npr.model = sem(Npr.mod, data = a,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(Npr.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
 
 # Mediation of source assessment
 
@@ -598,3 +948,11 @@ catchall.model = sem(catchall.mod, data = a,
 parameterestimates(catchall.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
   kbl(.,booktab = TRUE) %>%
   kable_styling(latex_options = c("hold_position")) 
+
+
+
+
+
+
+
+
