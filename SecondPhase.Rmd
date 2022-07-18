@@ -1,0 +1,787 @@
+---
+title: "Second Stage"
+date: '2022-07-15'
+output:
+  pdf_document:
+    keep_tex: yes
+    latex_engine: xelatex
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+
+header-includes:
+- \usepackage{graphicx}
+- \usepackage{float}
+- \usepackage{amsmath}
+- \usepackage{longtable}
+- \usepackage{dcolumn} 
+---
+
+```{r setup, include=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE)
+# load data
+d = read.csv("0604newdata.csv")
+
+# load packages
+library(tidyverse)
+library(summarytools)
+library(prettyR)
+library(modelsummary)
+library(reshape2)
+library(sjPlot)
+library(hrbrthemes)
+library(likert)
+library(stargazer)
+library(lavaan)
+library(kableExtra)
+library(psych)
+library(corrplot)
+library(ggbiplot)
+library(tinytex)
+
+#age
+d = d %>%
+  mutate(age = ifelse(Q1>100,2022-Q1,Q1))
+
+d = d %>%
+  dplyr:: mutate(gender = Q2, 
+         education = Q6,
+         income = Q7)
+
+#calculate depression socre
+d = d %>%
+  rowwise() %>%
+  dplyr:: mutate(depre = sum(c_across(Q24_1:Q24_9)))
+
+# rename media use
+d = d %>%
+  dplyr:: mutate(Use_phone = Q15_1,
+         Socialmedia_chat = Q15_2,
+         Socialmedia_post = Q15_3,
+         Socialmedia_scan = Q15_4,
+         Socialmedia_news = Q15_5,
+         Online_search = Q15_6,
+         Email = Q15_7,
+         Media_share = Q15_8,
+        Short_message = Q15_9,
+        Digital_game = Q15_10,
+        Whatsapp_wechat_line = Q15_11,
+        Skype_FT_zoom = Q15_12,
+        Online_friends = Q15_13,
+        Phone_call = Q15_14,
+        Watch_TV = Q15_5,
+        Radio = Q15_6,
+        Newspaper = Q15_17)
+
+```
+
+\newpage
+
+## PCA of Prevention Behaviors
+
+The figure suggests that prevention behaviors cannot be well categorized automatically.
+
+```{r PCA plot, echo=FALSE,fig.asp=0.95}
+
+d %>% 
+  select(Q18_1:Q18_16) %>%
+  prcomp(,scale = TRUE) %>%
+  plot(, type = "l")
+  
+
+```
+
+\newpage
+
+### Correlations between Prevention Behaviors
+
+The figure suggests the strong correlations exist between prevention behavior items.
+
+```{r echo=FALSE,fig.asp = .92}
+
+d %>%
+  select(Q18_1:Q18_16) %>%
+  cor() %>%
+  corrplot(., method = 'number')
+```
+
+## Manual Categorization of Prevention Behaviors
+
+-   Select Q18_8 Cover mouth when cough; Q18_15 Help family members and friends; Q18_16 Care about elders as other-oriented/social-oriented prevention behaviors
+
+-   Select the rest variables as self-oriented prevention behaviors
+
+    ```{r regression table}
+    #rename variables
+    d =d %>%
+      mutate(gender = Q2, 
+             education = Q6,
+             income = Q7)
+
+    #self-oriented prevention behaviors
+    d$mean_selfnew  = d  %>%
+      rowwise() %>%
+      select(Q18_1:Q18_7,Q18_9:Q18_14) %>%
+      dplyr:: mutate(mean_self = mean(c_across(Q18_1:Q18_14))) %>%
+      pull(.,mean_self)
+
+    # social-oriented prevvention behaviors
+    d = d %>%
+      rowwise() %>%
+      dplyr::mutate(mean_social = sum(Q18_8+Q18_15+Q18_16)/3)
+
+
+    # calculate empathy
+
+    d$Q27_1 = as.numeric(d$Q27_1)
+    d$Q27_2 = as.numeric(d$Q27_2)
+    d$Q27_3 = as.numeric(d$Q27_3)  
+
+    d = d %>%
+      mutate(empathy = (Q27_1 + Q27_2 + Q27_3)/3) 
+
+    # reg 
+
+    re_self = lm(mean_selfnew ~ empathy+age +gender + education +income,data = d) 
+
+    re_social = lm(mean_social ~ empathy +age +gender + education +income,data = d)
+
+
+    stargazer(re_self,re_social,
+              type = "text",
+              intercept.bottom = T,
+              ci = F, digits=2,
+              notes = "Empathy on self/social oriented prevention",
+              model.names = T,
+              single.row = T)
+
+    ```
+
+## Relationship between social support, resilience and life satisfaction
+
+```{r echo=FALSE, warning=FALSE}
+
+#rename variables
+d =d %>%
+  mutate(gender = Q2, 
+         education = Q6,
+         income = Q7)
+
+# recode resilience
+d = d %>%
+  mutate(re1_po = Q25_1,
+         re1_ng = Q25_2,
+         re2_po = Q25_3,
+         re2_ng = Q25_4,
+         re3_po = Q25_5,
+         re3_ng = Q25_6) %>%
+  mutate_if(is.integer, as.numeric) %>%
+  mutate_at(c("re1_ng","re2_ng","re3_ng") ,
+            funs(dplyr::recode(.,
+                           "1" = 7,
+                           "2" =6,
+                          "3" =5,
+                           "4"=4,
+                          "5"=3,
+                          "6"=2,
+                          "7"=1))) 
+
+# calculate mean_resilience
+d= d %>%
+  as_tibble()%>% 
+  rowwise()%>%
+  dplyr:: mutate(mean_resilience = sum(c_across(re1_po:re3_ng))/6)
+
+
+## Support calculation
+d= d %>%
+  as_tibble()%>%
+  rowwise()%>%
+  dplyr:: mutate(mean_support = sum(c_across(Q26_1:Q26_6))/6)
+
+# regression of satisfaction Q23
+
+re_sat1 = lm(Q23 ~ mean_support + mean_resilience,data = d) 
+
+re_sat2 = lm(Q23 ~ mean_support + mean_resilience + age + gender + education + income,data = d)
+
+
+stargazer(re_sat1,re_sat2,
+          type = "text",
+          intercept.bottom = T,
+          dep.var.labels= "life satisfaction",
+          ci = F, digits=2,
+          notes = "Social support, resilience and life satisfaction",
+          model.names = T,
+          single.row = T)
+
+
+
+
+
+
+```
+
+## Relationships between demographic variables, media use, information-source assessment and depression
+
+```{r echo=FALSE,results='asis'}
+library("rmarkdown")
+library("tinytex")
+library("stargazer")
+library("sandwich")
+
+#calculate depression socre
+d = d %>%
+  rowwise() %>%
+  dplyr:: mutate(depre = sum(c_across(Q24_1:Q24_9)))
+
+#rename variables
+d = d %>%
+  dplyr:: mutate(gender = Q2, 
+         education = Q6,
+         income = Q7)
+
+
+# Demographic variables and depression Q24
+## Demographics separately on Depression
+rd1 = lm(depre ~ age, data = d)
+rd2 = lm(depre ~ gender, data = d)
+rd3 = lm(depre ~ education, data = d)
+rd4 = lm(depre ~ income, data = d)
+
+stargazer(rd1,rd2,rd3,rd4,
+          type="latex",
+          float = TRUE,
+          font.size = "small",
+          align = TRUE,
+          intercept.bottom = T,
+           dep.var.labels= "Depression",
+          ci = F, digits=2,
+          notes = "Demographics separately on Depression",
+          column.sep.width = "-25pt", 
+          model.names = T,
+          single.row = T,
+          no.space = TRUE)
+
+# All demographics and depression
+rd5 = lm(depre ~ age +gender + education +income, data = d)
+
+stargazer(rd5,
+          type="latex",
+          float = TRUE,
+          font.size = "small",
+          align = TRUE,
+          intercept.bottom = T,
+           dep.var.labels= "Depression",
+          ci = F, digits=2,
+          notes = "All demographicson and Depression",
+          column.sep.width = "0.1pt", 
+          model.names = T,
+          single.row = T,
+          no.space = TRUE)
+
+```
+
+## Mediation effects of media use
+
+### Mediation of phone use
+
+No significant mediation effect.
+
+```{r}
+
+
+#use phone
+
+usephone.mod = '
+  depre ~ a1* Use_phone +b1 *age + b2*gender +b3*education + b4* income
+  Use_phone~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+
+usephone.model = sem(usephone.mod, data = d,
+                    std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(usephone.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+
+```
+
+\newpage
+
+### Mediation of social media chat
+
+Social media chat has mediation effect between age and depression.
+
+```{r}
+
+# social media chat
+smc.mod = '
+  depre ~ a1* Socialmedia_chat +b1 *age + b2*gender +b3*education + b4* income
+  Socialmedia_chat~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smc.model = sem(smc.mod, data = d,
+                     std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smc.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+\newpage
+
+### Mediation of Social media Post
+
+Social media post has mediation effects between age, education and depression.
+
+```{r}
+smp.mod = '
+  depre ~ a1* Socialmedia_post +b1 *age + b2*gender +b3*education + b4* income
+  Socialmedia_post~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smp.model = sem(smp.mod, data = d,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smp.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+```
+
+\newpage
+
+### Mediation of Social media News
+
+Social media use has mediation effects between age and depression.
+
+```{r}
+smn.mod = '
+  depre ~ a1* Socialmedia_news +b1 *age + b2*gender +b3*education + b4* income
+  Socialmedia_news~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smn.model = sem(smn.mod, data = d,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smn.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+```
+
+\newpage
+
+### Mediation of Online Search
+
+Online search has mediation effect between age and depression.
+
+```{r}
+os.mod = '
+
+  depre ~ a1* Online_search +b1 *age + b2*gender +b3*education + b4* income
+
+  Online_search~ c1 *age + c2*gender +c3*education + c4* income
+
+  Indirect1 := a1*c1
+
+  Indirect2 := a1*c2
+
+  Indirect3 := a1*c3
+
+  Indirect4 := a1*c4
+
+  age ~~ gender
+
+  gender ~~ education
+
+  education ~~ income
+
+  age ~~ education
+
+  age ~~ income
+
+  gender ~~ income'
+
+os.model = sem(os.mod, data = d,
+
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(os.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+
+  kbl(.,booktab = TRUE) %>%
+
+  kable_styling(latex_options = c("hold_position"))
+
+```
+
+\newpage
+
+### Mediation of Email
+
+Email has mediation effect between age and depression.
+
+```{r}
+eml.mod = '
+  depre ~ a1* Email +b1 *age + b2*gender +b3*education + b4* income
+  Email~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+eml.model = sem(eml.mod, data = d,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(eml.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+### Mediation of media share
+
+Media share has mediation effects between age, education and depression.
+
+```{r}
+ms.mod = '
+  depre ~ a1* Media_share +b1 *age + b2*gender +b3*education + b4* income
+  Media_share~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+ms.model = sem(ms.mod, data = d,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(ms.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+\newpage
+
+### Mediation of Short message
+
+Short message has mediation effect between age and depression.
+
+```{r}
+smg.mod = '
+  depre ~ a1* Short_message +b1 *age + b2*gender +b3*education + b4* income
+  Short_message~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+smg.model = sem(smg.mod, data = d,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(smg.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+```
+
+\newpage
+
+### Mediation of Digital Game
+
+Digital game has mediation effect between age and depression.
+
+```{r}
+dg.mod = '
+  depre ~ a1* Digital_game +b1 *age + b2*gender +b3*education + b4* income
+  Digital_game~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+dg.model = sem(dg.mod, data = d,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(dg.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+```
+
+\newpage
+
+### Mediation of Whatsapp
+
+Whatsapp has mediation effects between age, education and depression.
+
+```{r}
+wapp.mod = '
+  depre ~ a1* Whatsapp_wechat_line +b1 *age + b2*gender +b3*education + b4* income
+  Whatsapp_wechat_line~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+wapp.model = sem(wapp.mod, data = d,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(wapp.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+\newpage
+
+###  Mediation of Skype
+
+Skype has mediation effects between age, education, income and depression.
+
+```{r}
+sky.mod = '
+  depre ~ a1* Skype_FT_zoom +b1 *age + b2*gender +b3*education + b4* income
+  Skype_FT_zoom~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+sky.model = sem(sky.mod, data = d,
+                 std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(sky.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+\newpage
+
+###  Mediation of Online friends
+
+Online friends has mediation effects between age, education and depression.
+
+```{r}
+of.mod = '
+  depre ~ a1* Online_friends +b1 *age + b2*gender +b3*education + b4* income
+  Online_friends ~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+of.model = sem(of.mod, data = d,
+                std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(of.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+\newpage
+
+### Mediation of Watch TV
+
+TV has mediation effect between age and depression.
+
+```{r}
+TV.mod = '
+  depre ~ a1* Watch_TV +b1 *age + b2*gender +b3*education + b4* income
+  Watch_TV ~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+TV.model = sem(TV.mod, data = d,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(TV.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+\newpage
+
+### Mediation of Radio
+
+Radio has mediation effect between age and depression.
+
+```{r}
+Rd.mod = '
+  depre ~ a1* Radio +b1 *age + b2*gender +b3*education + b4* income
+  Radio~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+Rd.model = sem(Rd.mod, data = d,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(Rd.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+```
+
+\newpage
+
+### Mediation of newspaper
+
+Newspaper has mediation effect between education and depression.
+
+```{r}
+Npr.mod = '
+  depre ~ a1* Newspaper +b1 *age + b2*gender +b3*education + b4* income
+  Newspaper~ c1 *age + c2*gender +c3*education + c4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 := a1*c3
+  Indirect4 := a1*c4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+Npr.model = sem(Npr.mod, data = d,
+               std.lv = TRUE , meanstructure = TRUE )
+
+parameterestimates(Npr.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+```
+
+\newpage
+
+## Information source mediation analysis
+
+Information source related confusion has significant mediation effect between age and depression.
+
+Information source related confusion has relatively weak significant mediation effect (p\<0.1) between income and depression.
+
+Information source related certainty has relatively weak (p\<0.1) mediation effect between education and depression.
+
+```{r}
+## information source rename
+d = d %>%
+  dplyr:: mutate(certainty = Q17_1,
+         overload = Q17_2,
+         anxiety = Q17_3,
+         confusion = Q17_4)
+## all source assessment 
+source.mod = '
+  depre ~ a1* certainty +a2* overload + a3* anxiety + a4* confusion +b1 *age + b2*gender +b3*education + b4* income
+  certainty ~ c1 *age + c2*gender +c3*education + c4* income
+  overload ~ d1 *age + d2*gender +d3*education + d4* income
+  anxiety ~  e1 *age + e2*gender +e3*education + e4* income
+  confusion ~  f1 *age + f2*gender +f3*education + f4* income
+  Indirect1 := a1*c1
+  Indirect2 := a1*c2
+  Indirect3 :=a1*c3
+  Indirect4 :=a1*c4
+  Indirect5 := a2*d1
+  Indirect6 := a2*d2
+  Indirect7 :=a2*d3
+  Indirect8 :=a2*d4
+  Indirect9 := a3*e1
+  Indirect10 := a3*e2
+  Indirect11 :=a3*e3
+  Indirect12 :=a3*e4
+  Indirect13 := a4*f1
+  Indirect14:= a4*f2
+  Indirect15 :=a4*f3
+  Indirect16 :=a4*f4
+  age ~~ gender
+  gender ~~ education
+  education ~~ income
+  age ~~ education
+  age ~~ income
+  gender ~~ income'
+
+sa.model = sem(source.mod, data = d,
+             std.lv = TRUE , meanstructure = TRUE )
+parameterestimates(sa.model, boot.ci.type = "bca.simple", standardized = TRUE) %>% 
+  kbl(.,booktab = TRUE) %>%
+  kable_styling(latex_options = c("hold_position")) 
+
+```
